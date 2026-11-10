@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     duffel_base_url: str = "https://api.duffel.com"
     duffel_version: str = "v2"
 
+    # En mode test, seule Duffel Airways (ZZ) crée réellement des options :
+    # les autres compagnies renvoient une erreur 500 à la création.
+    test_hold_duffel_airways_only: bool = True
+
     app_name: str = "VisaFlight"
     base_url: str = "http://localhost:8000"
     database_url: str = "sqlite:///./data/app.db"

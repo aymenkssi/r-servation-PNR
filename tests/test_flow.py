@@ -128,3 +128,14 @@ def test_duffel_client_parses_error_body():
         client.create_hold_order("off_1", [])
     assert exc.value.status == 500 and exc.value.request_id == "FzX123"
     assert "FzX123" in exc.value.user_message()
+
+
+def test_test_mode_shows_only_duffel_airways(monkeypatch):
+    import app.main as m
+    from app.config import Settings
+    monkeypatch.setattr(m, "get_settings", lambda: Settings(duffel_access_token="duffel_test_x"))
+    with TestClient(app) as c:
+        r = _search(c, origin="JFK", destination="EWR")
+        assert r.status_code == 200
+        assert len(re.findall(r"/offers/(off_\w+)", r.text)) == 1
+        assert "Duffel Airways" in r.text and "Air France" not in r.text

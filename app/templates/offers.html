@@ -9,7 +9,14 @@
   {% if excluded %}({{ excluded }} offre(s) écartée(s)){% endif %}</p>
 
 {% if not offers %}
-<div class="bg-white rounded-xl shadow p-6">Aucun vol éligible pour ces dates. Essayez d'autres dates ou aéroports.</div>
+<div class="bg-white rounded-xl shadow p-6">
+  {% if test_filtered %}
+  Aucune offre Duffel Airways sur ce trajet. En mode test, seule cette compagnie fictive permet de créer une option :
+  essayez <strong>New York JFK → Newark EWR</strong>.
+  {% else %}
+  Aucun vol éligible pour ces dates. Essayez d'autres dates ou aéroports.
+  {% endif %}
+</div>
 {% endif %}
 
 <div class="grid gap-4">
