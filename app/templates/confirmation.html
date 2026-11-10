@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white rounded-xl shadow p-6">
+  {% if booking.status == "held" %}
+  <div class="text-green-700 font-semibold mb-2">Réservation créée</div>
+  {% else %}
+  <div class="text-red-700 font-semibold mb-2">Réservation expirée</div>
+  {% endif %}
+  <div class="text-sm text-slate-500">Référence de réservation (PNR)</div>
+  <div class="text-4xl font-bold tracking-widest text-blue-900 mb-4">{{ booking.booking_reference }}</div>
+
+  <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-6">
+    <div><dt class="text-slate-500">Compagnie</dt><dd class="font-medium">{{ booking.airline_name }} ({{ booking.airline_iata }})</dd></div>
+    <div><dt class="text-slate-500">Passager</dt><dd class="font-medium">{{ booking.passenger_name }}</dd></div>
+    <div><dt class="text-slate-500">Valable jusqu'au (UTC)</dt><dd class="font-medium">{{ booking.expires_at.strftime('%d/%m/%Y %H:%M') if booking.expires_at else '-' }}</dd></div>
+    <div><dt class="text-slate-500">Envoyé à</dt><dd class="font-medium">{{ booking.email }}</dd></div>
+  </dl>
+
+  <div class="text-sm font-medium mb-1">Vols</div>
+  <ul class="text-sm text-slate-600 mb-6">
+  {% for sl in order.slices %}{% for seg in sl.segments %}
+    <li>{{ seg.marketing_carrier.iata_code }} {{ seg.marketing_carrier_flight_number }} —
+      {{ seg.origin.iata_code }} {{ seg.departing_at | dt }} → {{ seg.destination.iata_code }} {{ seg.arriving_at | dt }}</li>
+  {% endfor %}{% endfor %}
+  </ul>
+
+  <a href="/booking/{{ booking.public_id }}/pdf" class="inline-block rounded-lg bg-blue-900 text-white font-semibold px-5 py-3 hover:bg-blue-800">
+    Télécharger l'itinéraire (PDF)
+  </a>
+  <p class="text-xs text-slate-500 mt-4">Vérifiez la réservation sur le site de {{ booking.airline_name }}, rubrique « Gérer ma réservation », avec la référence et votre nom.</p>
+</div>
+{% endblock %}

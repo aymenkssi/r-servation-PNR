@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  {% if mock_mode %}
+  <div class="bg-amber-100 text-amber-900 text-sm text-center py-2 px-4">
+    Mode simulé : aucun appel à Duffel (renseignez DUFFEL_ACCESS_TOKEN dans .env).
+  </div>
+  {% elif test_mode %}
+  <div class="bg-amber-100 text-amber-900 text-sm text-center py-2 px-4">
+    Mode test Duffel : les réservations ne sont pas réelles.
+  </div>
+  {% endif %}
+  <header class="bg-blue-900 text-white">
+    <div class="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold">{{ app_name }}</a>
+      <span class="text-sm text-blue-200">Réservation de vol pour dossier de visa</span>
+    </div>
+  </header>
+  <main class="max-w-3xl mx-auto px-4 py-8">
+    {% if error %}
+    <div class="mb-6 rounded-lg border border-red-200 bg-red-50 text-red-800 px-4 py-3">{{ error }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Secrets — ne jamais committer le jeton Duffel
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Données locales
+*.db
+data/

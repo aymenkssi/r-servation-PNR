@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="javascript:history.back()" class="text-sm text-blue-800 hover:underline">← Retour aux vols</a>
+<h1 class="text-2xl font-bold text-blue-900 mt-2 mb-4">Informations du passager</h1>
+
+<div class="bg-white rounded-xl shadow p-5 mb-6">
+  <div class="font-semibold">{{ offer.owner.name }}</div>
+  {% for sl in offer.slices %}
+    {% set first = sl.segments[0] %}{% set last = sl.segments[-1] %}
+    <div class="text-sm text-slate-600">{{ sl.origin.iata_code }} {{ first.departing_at | dt }} → {{ sl.destination.iata_code }} {{ last.arriving_at | dt }}</div>
+  {% endfor %}
+</div>
+
+<form method="post" action="/book" class="bg-white rounded-xl shadow p-6 grid gap-4 sm:grid-cols-2">
+  <input type="hidden" name="offer_id" value="{{ offer.id }}">
+  <label class="block">
+    <span class="text-sm font-medium">Civilité</span>
+    <select name="title" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+      {% for v, l in [("mr","M."),("ms","Mme"),("mrs","Mme (mariée)"),("miss","Mlle")] %}
+      <option value="{{ v }}" {% if form.title == v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="block">
+    <span class="text-sm font-medium">Sexe</span>
+    <select name="gender" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+      <option value="m" {% if form.gender == "m" %}selected{% endif %}>Homme</option>
+      <option value="f" {% if form.gender == "f" %}selected{% endif %}>Femme</option>
+    </select>
+  </label>
+  <label class="block">
+    <span class="text-sm font-medium">Prénom (comme sur le passeport)</span>
+    <input name="given_name" required value="{{ form.given_name or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+  </label>
+  <label class="block">
+    <span class="text-sm font-medium">Nom (comme sur le passeport)</span>
+    <input name="family_name" required value="{{ form.family_name or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+  </label>
+  <label class="block">
+    <span class="text-sm font-medium">Date de naissance</span>
+    <input type="date" name="born_on" required value="{{ form.born_on or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+  </label>
+  <label class="block">
+    <span class="text-sm font-medium">Téléphone</span>
+    <input name="phone_number" required placeholder="+33612345678" value="{{ form.phone_number or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+  </label>
+  <label class="block sm:col-span-2">
+    <span class="text-sm font-medium">E-mail (l'itinéraire y sera envoyé)</span>
+    <input type="email" name="email" required value="{{ form.email or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+  </label>
+  <button class="sm:col-span-2 rounded-lg bg-blue-900 text-white font-semibold py-3 hover:bg-blue-800">
+    Créer la réservation
+  </button>
+</form>
+{% endblock %}
