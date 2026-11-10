@@ -163,7 +163,7 @@ def search(
         o_code, o_label = resolve_place(origin, origin_query)
         d_code, d_label = resolve_place(destination, destination_query)
     except DuffelError as e:
-        return render(request, "index.html", 502, error=f"Recherche de ville impossible : {e}", **ctx)
+        return render(request, "index.html", 502, error=f"Recherche de ville impossible. {e.user_message()}", **ctx)
     form.update(origin=o_code or "", destination=d_code or "", origin_query=o_label, destination_query=d_label)
 
     error = None
@@ -193,8 +193,7 @@ def search(
     try:
         result = get_client().search(slices)
     except DuffelError as e:
-        log.warning("Recherche Duffel échouée : %s", e)
-        return render(request, "index.html", 502, error=f"La recherche a échoué : {e}", **ctx)
+        return render(request, "index.html", 502, error=f"La recherche a échoué. {e.user_message()}", **ctx)
 
     offers = [o for o in result.get("offers", []) if is_holdable(o)]
     offers.sort(key=lambda o: float(o["total_amount"]))
@@ -276,8 +275,9 @@ def book(
     try:
         order = client.create_hold_order(offer_id, [passenger])
     except DuffelError as e:
-        log.warning("Création de l'option échouée : %s", e)
-        return render(request, "passenger.html", 502, error=f"La compagnie a refusé la réservation : {e}",
+        log.warning("Création de l'option échouée (offre %s, compagnie %s) : %s",
+                    offer_id, offer.get("owner", {}).get("iata_code"), e)
+        return render(request, "passenger.html", 502, error=e.user_message(),
                       **passenger_ctx(offer, {**form, "phone_country": phone_country}))
 
     expires = (order.get("payment_status") or {}).get("payment_required_by")

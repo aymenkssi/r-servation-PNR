@@ -5,6 +5,7 @@ réponses de même forme que l'API, pour développer hors ligne.
 """
 from __future__ import annotations
 
+import logging
 import random
 import string
 from datetime import datetime, timedelta, timezone
@@ -15,12 +16,45 @@ import httpx
 from . import places_mock
 from .config import Settings, get_settings
 
+log = logging.getLogger("duffel")
+
 
 class DuffelError(Exception):
-    def __init__(self, message: str, status: int | None = None, errors: list | None = None):
+    def __init__(self, message: str, status: int | None = None, errors: list | None = None,
+                 request_id: str | None = None):
         super().__init__(message)
         self.status = status
         self.errors = errors or []
+        self.request_id = request_id
+
+    @property
+    def codes(self) -> set[str]:
+        return {e.get("code", "") for e in self.errors}
+
+    @property
+    def is_server_error(self) -> bool:
+        return self.status is None or self.status >= 500
+
+    def user_message(self) -> str:
+        """Message en français pour le client (le détail technique va dans les logs)."""
+        codes = self.codes
+        if codes & {"offer_no_longer_available", "offer_expired", "price_changed",
+                    "offer_request_already_booked", "already_booked"}:
+            msg = "Ce vol n'est plus disponible à la réservation. Relancez une recherche et choisissez un autre vol."
+        elif self.status == 422 or "validation_error" in codes:
+            details = "; ".join(e.get("message", "") for e in self.errors if e.get("message"))
+            msg = f"La compagnie a refusé les informations saisies : {details}" if details else \
+                "La compagnie a refusé les informations saisies."
+        elif self.status == 429:
+            msg = "Trop de demandes en même temps. Patientez une minute puis réessayez."
+        elif self.status in (401, 403):
+            msg = "Le service de réservation est mal configuré (jeton Duffel refusé)."
+        else:
+            msg = ("La compagnie n'a pas pu créer la réservation pour ce vol. "
+                   "Choisissez un autre vol ou réessayez plus tard.")
+        if self.request_id:
+            msg += f" (référence de l'erreur : {self.request_id})"
+        return msg
 
 
 class DuffelClient:
@@ -37,14 +71,23 @@ class DuffelClient:
         )
 
     def _request(self, method: str, path: str, **kwargs) -> dict[str, Any]:
-        resp = self._http.request(method, path, **kwargs)
+        try:
+            resp = self._http.request(method, path, **kwargs)
+        except httpx.HTTPError as e:
+            log.error("Duffel injoignable (%s %s) : %s", method, path, e)
+            raise DuffelError(f"Duffel injoignable : {e}") from e
         if resp.status_code >= 400:
             try:
-                errors = resp.json().get("errors", [])
+                body = resp.json()
             except ValueError:
-                errors = []
+                body = {}
+            errors = body.get("errors", []) or []
+            request_id = (body.get("meta") or {}).get("request_id") or resp.headers.get("x-request-id")
             msg = "; ".join(e.get("message", "") for e in errors) or resp.text[:300]
-            raise DuffelError(msg, resp.status_code, errors)
+            # Tout le détail dans les logs, pour le support Duffel.
+            log.error("Duffel %s %s -> HTTP %s request_id=%s errors=%s",
+                      method, path, resp.status_code, request_id, errors or resp.text[:500])
+            raise DuffelError(msg, resp.status_code, errors, request_id)
         return resp.json()["data"]
 
     def search(self, slices: list[dict], adults: int = 1, cabin_class: str = "economy") -> dict:

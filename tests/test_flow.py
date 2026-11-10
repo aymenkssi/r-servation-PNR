@@ -98,3 +98,33 @@ def test_bad_phone_rejected():
             "born_on": "1990-05-05", "email": "a@b.co", "phone_country": "FR", "phone_number": "+33 12",
         })
         assert r.status_code == 422 and "téléphone invalide" in r.text
+
+
+def test_duffel_error_messages():
+    from app.duffel import DuffelError
+    e = DuffelError("Something went wrong", 500, [{"code": "internal_server_error"}], "req_ABC")
+    assert "Choisissez un autre vol" in e.user_message() and "req_ABC" in e.user_message()
+    e = DuffelError("gone", 422, [{"code": "offer_no_longer_available"}])
+    assert "plus disponible" in e.user_message()
+    e = DuffelError("bad", 422, [{"code": "validation_error", "message": "born_on is invalid"}])
+    assert "born_on is invalid" in e.user_message()
+
+
+def test_duffel_client_parses_error_body():
+    import httpx
+    import pytest
+    from app.config import Settings
+    from app.duffel import DuffelClient, DuffelError
+
+    def handler(request):
+        return httpx.Response(500, json={
+            "meta": {"status": 500, "request_id": "FzX123"},
+            "errors": [{"type": "api_error", "code": "internal_server_error",
+                        "message": "Something went wrong."}]})
+
+    client = DuffelClient(Settings(duffel_access_token="duffel_test_x"))
+    client._http = httpx.Client(base_url="https://api.duffel.com", transport=httpx.MockTransport(handler))
+    with pytest.raises(DuffelError) as exc:
+        client.create_hold_order("off_1", [])
+    assert exc.value.status == 500 and exc.value.request_id == "FzX123"
+    assert "FzX123" in exc.value.user_message()
