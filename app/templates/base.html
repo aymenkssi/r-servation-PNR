@@ -14,7 +14,7 @@
   {% elif test_mode %}
   <div class="bg-amber-100 text-amber-900 text-sm text-center py-2 px-4">
     Mode test Duffel : les réservations ne sont pas réelles.
-    {% if test_zz_only %}Seule la compagnie fictive Duffel Airways est proposée : essayez New York JFK → Newark EWR.{% endif %}
+    {% if test_airlines %}Compagnies proposées en test : {{ test_airlines }}.{% endif %}
   </div>
   {% endif %}
   <header class="bg-blue-900 text-white">

@@ -82,7 +82,7 @@ templates.env.filters["dt"] = fmt_dt
 def render(request: Request, name: str, status_code: int = 200, **ctx) -> HTMLResponse:
     s = get_settings()
     ctx.update(app_name=s.app_name, mock_mode=s.mock_mode, test_mode=s.duffel_test_mode,
-               test_zz_only=s.duffel_test_mode and s.test_hold_duffel_airways_only)
+               test_airlines=", ".join(sorted(s.test_airlines_filter)))
     return templates.TemplateResponse(request, name, ctx, status_code=status_code)
 
 
@@ -198,9 +198,10 @@ def search(
 
     offers = [o for o in result.get("offers", []) if is_holdable(o)]
     settings = get_settings()
-    test_filtered = settings.duffel_test_mode and settings.test_hold_duffel_airways_only
-    if test_filtered:
-        offers = [o for o in offers if o["owner"]["iata_code"] == "ZZ"]
+    allowed = settings.test_airlines_filter
+    test_filtered = bool(allowed)
+    if allowed:
+        offers = [o for o in offers if o["owner"]["iata_code"] in allowed]
     offers.sort(key=lambda o: float(o["total_amount"]))
     return render(request, "offers.html", form=form, offers=offers[:20], test_filtered=test_filtered,
                   excluded=len(result.get("offers", [])) - len(offers))

@@ -130,7 +130,7 @@ def test_duffel_client_parses_error_body():
     assert "FzX123" in exc.value.user_message()
 
 
-def test_test_mode_shows_only_duffel_airways(monkeypatch):
+def test_test_mode_filters_airlines(monkeypatch):
     import app.main as m
     from app.config import Settings
     monkeypatch.setattr(m, "get_settings", lambda: Settings(duffel_access_token="duffel_test_x"))
@@ -139,3 +139,8 @@ def test_test_mode_shows_only_duffel_airways(monkeypatch):
         assert r.status_code == 200
         assert len(re.findall(r"/offers/(off_\w+)", r.text)) == 1
         assert "Duffel Airways" in r.text and "Air France" not in r.text
+    monkeypatch.setattr(m, "get_settings", lambda: Settings(duffel_access_token="duffel_test_x",
+                                                            test_hold_airlines=""))
+    with TestClient(app) as c:
+        r = _search(c, origin="JFK", destination="EWR")
+        assert len(re.findall(r"/offers/(off_\w+)", r.text)) == 3  # filtre désactivé

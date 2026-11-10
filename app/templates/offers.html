@@ -11,8 +11,8 @@
 {% if not offers %}
 <div class="bg-white rounded-xl shadow p-6">
   {% if test_filtered %}
-  Aucune offre Duffel Airways sur ce trajet. En mode test, seule cette compagnie fictive permet de créer une option :
-  essayez <strong>New York JFK → Newark EWR</strong>.
+  Aucune offre des compagnies vérifiées en test ({{ test_airlines }}) sur ce trajet.
+  Essayez par exemple <strong>New York JFK → Newark EWR</strong> (Duffel Airways) ou un trajet British Airways.
   {% else %}
   Aucun vol éligible pour ces dates. Essayez d'autres dates ou aéroports.
   {% endif %}
