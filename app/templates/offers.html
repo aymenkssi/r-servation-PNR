@@ -4,6 +4,7 @@
 <h1 class="text-2xl font-bold text-blue-900 mt-2 mb-1">
   {{ form.origin }} → {{ form.destination }}{% if form.return_date %} → {{ form.origin }}{% endif %}
 </h1>
+<p class="text-sm text-slate-500">{{ form.origin_query }} → {{ form.destination_query }}</p>
 <p class="text-slate-600 mb-6">Seuls les vols pouvant être réservés sans paiement immédiat sont affichés.
   {% if excluded %}({{ excluded }} offre(s) écartée(s)){% endif %}</p>
 
@@ -19,8 +20,8 @@
       {% for sl in offer.slices %}
         {% set first = sl.segments[0] %}{% set last = sl.segments[-1] %}
         <div class="text-sm text-slate-600">
-          {{ sl.origin.iata_code }} {{ first.departing_at | dt }} → {{ sl.destination.iata_code }} {{ last.arriving_at | dt }}
-          · {{ sl.segments | length - 1 }} escale(s)
+          {{ first.origin.iata_code }} {{ first.departing_at | dt }} → {{ last.destination.iata_code }} {{ last.arriving_at | dt }}
+          · {{ (sl.segments | length) - 1 }} escale(s)
         </div>
       {% endfor %}
       <div class="text-xs text-slate-500 mt-1">Option valable jusqu'au {{ offer.payment_requirements.payment_required_by | dt }} (UTC)</div>

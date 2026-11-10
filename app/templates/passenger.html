@@ -40,10 +40,20 @@
     <span class="text-sm font-medium">Date de naissance</span>
     <input type="date" name="born_on" required value="{{ form.born_on or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
   </label>
-  <label class="block">
+  <div class="block sm:col-span-2">
     <span class="text-sm font-medium">Téléphone</span>
-    <input name="phone_number" required placeholder="+33612345678" value="{{ form.phone_number or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
-  </label>
+    <div class="mt-1 flex gap-2">
+      <select name="phone_country" data-phone-country aria-label="Pays de l'indicatif"
+              class="w-48 shrink-0 rounded-lg border border-slate-300 px-2 py-2">
+        {% for iso, name, dial in countries %}
+        <option value="{{ iso }}" data-dial="{{ dial }}" {% if form.phone_country == iso %}selected{% endif %}>{{ name }} (+{{ dial }})</option>
+        {% endfor %}
+      </select>
+      <input name="phone_number" required type="tel" inputmode="tel" data-phone-number
+             value="{{ form.phone_number or '' }}" aria-label="Numéro de téléphone"
+             class="flex-1 min-w-0 rounded-lg border border-slate-300 px-3 py-2">
+    </div>
+  </div>
   <label class="block sm:col-span-2">
     <span class="text-sm font-medium">E-mail (l'itinéraire y sera envoyé)</span>
     <input type="email" name="email" required value="{{ form.email or '' }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">

@@ -3,17 +3,19 @@
 <h1 class="text-2xl font-bold text-blue-900 mb-2">Obtenez une réservation de vol vérifiable</h1>
 <p class="text-slate-600 mb-6">Une vraie réservation à votre nom, avec un code PNR vérifiable sur le site de la compagnie, pour votre demande de visa.</p>
 
-<form method="post" action="/search" class="bg-white rounded-xl shadow p-6 grid gap-4 sm:grid-cols-2">
-  <label class="block">
-    <span class="text-sm font-medium">Départ (code IATA)</span>
-    <input name="origin" required maxlength="3" placeholder="TUN" value="{{ form.origin or '' }}"
-           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 uppercase">
-  </label>
-  <label class="block">
-    <span class="text-sm font-medium">Arrivée (code IATA)</span>
-    <input name="destination" required maxlength="3" placeholder="CDG" value="{{ form.destination or '' }}"
-           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 uppercase">
-  </label>
+<form method="post" action="/search" autocomplete="off" class="bg-white rounded-xl shadow p-6 grid gap-4 sm:grid-cols-2">
+  {% for field, label, ph in [("origin", "Départ", "Tunis, Djerba, TUN…"), ("destination", "Arrivée", "Paris, Lyon, CDG…")] %}
+  <div class="relative" data-place>
+    <label class="block">
+      <span class="text-sm font-medium">{{ label }} (ville ou aéroport)</span>
+      <input name="{{ field }}_query" required placeholder="{{ ph }}" data-place-input
+             value="{{ form[field ~ '_query'] or '' }}"
+             class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+    </label>
+    <input type="hidden" name="{{ field }}" value="{{ form[field] or '' }}" data-place-code>
+    <ul data-place-list class="hidden absolute z-10 mt-1 w-full max-h-72 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg text-sm"></ul>
+  </div>
+  {% endfor %}
   <label class="block">
     <span class="text-sm font-medium">Date d'aller</span>
     <input type="date" name="departure_date" required min="{{ today }}" value="{{ form.departure_date or '' }}"

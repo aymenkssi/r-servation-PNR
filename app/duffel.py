@@ -12,6 +12,7 @@ from typing import Any
 
 import httpx
 
+from . import places_mock
 from .config import Settings, get_settings
 
 
@@ -74,6 +75,9 @@ class DuffelClient:
     def get_order(self, order_id: str) -> dict:
         return self._request("GET", f"/air/orders/{order_id}")
 
+    def suggest_places(self, query: str) -> list[dict]:
+        return self._request("GET", "/places/suggestions", params={"query": query})
+
 
 # --------------------------------------------------------------------------
 # Client simulé
@@ -102,14 +106,27 @@ class MockDuffelClient:
         self._offers: dict[str, dict] = {}
         self._orders: dict[str, dict] = {}
 
+    @staticmethod
+    def _loc(code: str) -> dict:
+        p = places_mock.BY_CODE.get(code, {})
+        # Une ville est desservie par son premier aéroport.
+        if p.get("type") == "city":
+            code = p["airports"][0]["iata_code"]
+            p = places_mock.BY_CODE.get(code, p)
+        return {"iata_code": code, "name": p.get("name", code),
+                "city_name": p.get("city_name", code), "iata_country_code": p.get("iata_country_code")}
+
+    def suggest_places(self, query: str) -> list[dict]:
+        return places_mock.suggest(query)
+
     def _segment(self, origin: str, destination: str, date: str, carrier: tuple[str, str]) -> dict:
         dep = datetime.fromisoformat(date).replace(
             hour=random.choice([7, 9, 12, 15, 18]), minute=random.choice([0, 15, 30, 45])
         )
         arr = dep + timedelta(hours=random.randint(2, 6), minutes=random.choice([0, 20, 40]))
         return {
-            "origin": {"iata_code": origin, "name": origin},
-            "destination": {"iata_code": destination, "name": destination},
+            "origin": self._loc(origin),
+            "destination": self._loc(destination),
             "departing_at": dep.strftime("%Y-%m-%dT%H:%M:%S"),
             "arriving_at": arr.strftime("%Y-%m-%dT%H:%M:%S"),
             "marketing_carrier": {"iata_code": carrier[0], "name": carrier[1]},
@@ -136,8 +153,8 @@ class MockDuffelClient:
                 },
                 "slices": [
                     {
-                        "origin": {"iata_code": s["origin"], "name": s["origin"]},
-                        "destination": {"iata_code": s["destination"], "name": s["destination"]},
+                        "origin": self._loc(s["origin"]),
+                        "destination": self._loc(s["destination"]),
                         "segments": [
                             self._segment(s["origin"], s["destination"], s["departure_date"], carrier)
                         ],

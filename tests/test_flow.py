@@ -8,7 +8,7 @@ os.environ["DISABLE_SCHEDULER"] = "1"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.main import app  # noqa: E402
+from app.main import app, normalize_phone  # noqa: E402
 from app.scheduler import expire_bookings  # noqa: E402
 
 
@@ -16,23 +16,32 @@ def _future(days):
     return (date.today() + timedelta(days=days)).isoformat()
 
 
+def _search(c, **kw):
+    data = {"origin_query": "", "origin": "", "destination_query": "", "destination": "",
+            "departure_date": _future(30), "return_date": ""}
+    data.update(kw)
+    return c.post("/search", data=data)
+
+
 def test_full_hold_flow():
     with TestClient(app) as c:
         assert c.get("/").status_code == 200
 
-        r = c.post("/search", data={"origin": "tun", "destination": "CDG",
-                                    "departure_date": _future(30), "return_date": _future(40)})
+        r = _search(c, origin_query="Tunis-Carthage (TUN)", origin="TUN",
+                    destination_query="Paris", destination="PAR", return_date=_future(40))
         assert r.status_code == 200
         offer_ids = re.findall(r"/offers/(off_\w+)", r.text)
         assert len(offer_ids) == 3  # l'offre à paiement immédiat est écartée
 
         r = c.get(f"/offers/{offer_ids[0]}")
         assert r.status_code == 200 and "Informations du passager" in r.text
+        # Pays de l'indicatif présélectionné d'après l'aéroport de départ (Tunisie)
+        assert re.search(r'value="TN" data-dial="216" selected', r.text)
 
         r = c.post("/book", data={
             "offer_id": offer_ids[0], "title": "mr", "gender": "m", "given_name": "Aymen",
             "family_name": "Dridi", "born_on": "1985-01-01", "email": "test@example.com",
-            "phone_number": "+33 6 12 34 56 78",
+            "phone_country": "FR", "phone_number": "06 12 34 56 78",
         }, follow_redirects=False)
         assert r.status_code == 303
         page = c.get(r.headers["location"])
@@ -45,20 +54,47 @@ def test_full_hold_flow():
         assert expire_bookings() == 0  # option encore valable
 
 
+def test_search_by_city_name_without_selection():
+    with TestClient(app) as c:
+        # Texte libre sans choix dans la liste : la ville est résolue côté serveur
+        r = _search(c, origin_query="djerba", destination_query="lyon")
+        assert r.status_code == 200
+        assert "DJE → LYS" in r.text
+
+
+def test_places_api():
+    with TestClient(app) as c:
+        data = c.get("/api/places", params={"q": "paris"}).json()
+        assert data[0]["code"] == "PAR" and data[0]["type"] == "city"
+        assert {"CDG", "ORY"} <= {d["code"] for d in data}
+        assert c.get("/api/places", params={"q": "seville"}).json()[0]["code"] == "SVQ"  # sans accent
+        assert c.get("/api/places", params={"q": "p"}).json() == []
+
+
 def test_validation_errors():
     with TestClient(app) as c:
-        r = c.post("/search", data={"origin": "PARIS", "destination": "CDG", "departure_date": _future(5)})
-        assert r.status_code == 422 and "IATA" in r.text
-        r = c.post("/search", data={"origin": "TUN", "destination": "CDG", "departure_date": "2020-01-01"})
+        r = _search(c, origin_query="Atlantide", destination_query="Paris")
+        assert r.status_code == 422 and "introuvable" in r.text
+        r = _search(c, origin="TUN", destination="CDG", departure_date="2020-01-01")
         assert r.status_code == 422
+        r = _search(c, origin_query="Paris", destination_query="Paris")
+        assert r.status_code == 422
+
+
+def test_phone_normalization():
+    assert normalize_phone("06 12 34 56 78", "FR") == "+33612345678"
+    assert normalize_phone("+33 6 12 34 56 78", "FR") == "+33612345678"
+    assert normalize_phone("+216 98 123 456", "TN") == "+21698123456"
+    assert normalize_phone("98123456", "TN") == "+21698123456"
+    assert normalize_phone("12", "FR") is None
 
 
 def test_bad_phone_rejected():
     with TestClient(app) as c:
-        r = c.post("/search", data={"origin": "TUN", "destination": "CDG", "departure_date": _future(10)})
+        r = _search(c, origin="TUN", destination="CDG")
         offer_id = re.findall(r"/offers/(off_\w+)", r.text)[0]
         r = c.post("/book", data={
             "offer_id": offer_id, "title": "ms", "gender": "f", "given_name": "A", "family_name": "B",
-            "born_on": "1990-05-05", "email": "a@b.co", "phone_number": "0612345678",
+            "born_on": "1990-05-05", "email": "a@b.co", "phone_country": "FR", "phone_number": "+33 12",
         })
-        assert r.status_code == 422 and "international" in r.text
+        assert r.status_code == 422 and "téléphone invalide" in r.text
