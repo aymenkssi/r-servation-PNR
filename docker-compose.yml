@@ -1,0 +1,47 @@
+# VisaFlight sur le VPS qui fait déjà tourner Traefik (même réseau que le portfolio et SurfaceAttackWatch).
+# Aucun port publié : Traefik route le sous-domaine et obtient le certificat Let's Encrypt.
+# Usage : cp .env.example .env (renseigner) puis `docker compose up -d --build`.
+name: visaflight
+
+services:
+  web:
+    build: .
+    image: visaflight:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite:////app/data/app.db
+    volumes:
+      - visaflight-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    networks: [traefik]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-web}
+      # HTTPS
+      - traefik.http.routers.visaflight.rule=Host(`${DOMAIN:-visaflight.creationapp.academy}`)
+      - traefik.http.routers.visaflight.entrypoints=${TRAEFIK_HTTPS_ENTRYPOINT:-websecure}
+      - traefik.http.routers.visaflight.tls=true
+      - traefik.http.routers.visaflight.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.visaflight.middlewares=visaflight-hsts
+      - traefik.http.services.visaflight.loadbalancer.server.port=8000
+      # HTTP -> HTTPS (limité à ce site)
+      - traefik.http.routers.visaflight-http.rule=Host(`${DOMAIN:-visaflight.creationapp.academy}`)
+      - traefik.http.routers.visaflight-http.entrypoints=${TRAEFIK_HTTP_ENTRYPOINT:-web}
+      - traefik.http.routers.visaflight-http.middlewares=visaflight-https
+      - traefik.http.middlewares.visaflight-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.visaflight-https.redirectscheme.permanent=true
+      - traefik.http.middlewares.visaflight-hsts.headers.stsSeconds=31536000
+
+volumes:
+  visaflight-data:
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-web}

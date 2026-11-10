@@ -41,7 +41,29 @@ async def lifespan(app: FastAPI):
         sched.shutdown(wait=False)
 
 
-app = FastAPI(title="Réservation de vol pour visa", lifespan=lifespan)
+app = FastAPI(title="Réservation de vol pour visa", lifespan=lifespan,
+              docs_url=None, redoc_url=None, openapi_url=None)
+
+# Tailwind est chargé depuis son CDN (MVP) : il injecte des styles inline.
+CSP = (
+    "default-src 'none'; script-src 'self' https://cdn.tailwindcss.com; "
+    "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+    "form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
+)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", CSP)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    if request.url.path.startswith("/booking/"):
+        response.headers["Cache-Control"] = "no-store"  # données personnelles
+        response.headers["X-Robots-Tag"] = "noindex"
+    return response
 
 
 def fmt_dt(value: str | None) -> str:
